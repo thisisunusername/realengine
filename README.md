@@ -105,13 +105,23 @@ make release    # -O2 编译并 strip，产物可直接上传 Release
 
 懒得编译的话，去 [Releases](../../releases) 下载附件：
 
-| 附件 | 平台 |
-|---|---|
-| `interp_linux_arm64` | Linux aarch64 |
+| 附件 | 平台 | 说明 |
+|---|---|---|
+| `interp_linux_arm64` | Linux aarch64 | glibc，跑在普通 Linux / proot 里 |
+| `interp_android_arm64` | Android arm64 | 链接 `/system/bin/linker64`，跑在 Termux 等 Android 原生环境 |
 
 ```sh
 chmod +x interp_linux_arm64
 ./interp_linux_arm64 examples/helloworld.re
+```
+
+**注意两个二进制不能混用** —— Linux 版依赖 glibc，Android 版依赖 bionic。在 Android 上跑 Linux 版会报 `required file not found`（找不到 `ld-linux-aarch64.so.1`），反过来同理。
+
+Android 上的用法：
+
+```sh
+chmod +x interp_android_arm64
+./interp_android_arm64 examples/helloworld.re
 ```
 
 ---
