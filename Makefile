@@ -6,9 +6,7 @@ UNAME_S  := $(shell uname -s | tr 'A-Z' 'a-z')
 UNAME_M  := $(shell uname -m)
 BIN      := interp_$(UNAME_S)_$(UNAME_M)
 
-CXXFLAGS ?= -std=c++17 -O0 -Wall -Isrc \
-            -fno-var-tracking -fno-var-tracking-assignments -fno-inline \
-            --param ggc-min-expand=10 --param ggc-min-heapsize=8192
+CXXFLAGS ?= -std=c++17 -O2 -Wall -Isrc
 
 all: interp
 
