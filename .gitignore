@@ -1,0 +1,26 @@
+# ---- 编译产物 ----
+out/
+*.o
+*.obj
+*.a
+*.so
+
+# ---- 转译器生成的中间 C++ ----
+*.re.cpp
+generated/
+
+# ---- 编辑器 / IDE ----
+.vscode/
+.idea/
+*.swp
+*~
+.cache/
+compile_commands.json
+
+# ---- 系统垃圾 ----
+.DS_Store
+Thumbs.db
+
+# ---- 临时文件 ----
+*.tmp
+*.log

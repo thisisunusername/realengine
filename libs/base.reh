@@ -1,0 +1,18 @@
+#tips BASE
+// base.reh —— 基础工具函数
+
+function_add "rel_true"(type=normal) do="
+  execve('/bin/true')
+"
+
+function_add "rel_false"(type=normal) do="
+  execve('/bin/false')
+"
+
+function_add "rel_sleep"(type=normal) do="
+  execve('/bin/sleep', '$INPUT_OPT')
+"
+
+function_add "rel_which"(type=normal) do="
+  execve('/usr/bin/which', '$INPUT_OPT')
+"

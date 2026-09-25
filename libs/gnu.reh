@@ -1,0 +1,18 @@
+#tips GNU
+// gnu.reh —— GNU 工具集封装
+
+function_add "rel_ls"(type=normal) do="
+  execve('/bin/ls', '--color=never', '$INPUT_OPT')
+"
+
+function_add "rel_whoami"(type=normal) do="
+  execve('/usr/bin/whoami')
+"
+
+function_add "rel_uname"(type=normal) do="
+  execve('/usr/bin/uname', '-a')
+"
+
+function_add "rel_id"(type=normal) do="
+  execve('/usr/bin/id')
+"
