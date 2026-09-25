@@ -1,6 +1,4 @@
 #tips PWD
-// pwd.reh —— 当前工作目录相关
-// ashell.re 里用到的 $execute_command pwd_cat 就来自这里
 
 function_add "pwd_cat"(type=normal) do="
   printf('$execute_command pwd')

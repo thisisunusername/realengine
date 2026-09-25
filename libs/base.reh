@@ -1,5 +1,4 @@
 #tips BASE
-// base.reh —— 基础工具函数
 
 function_add "rel_true"(type=normal) do="
   execve('/bin/true')

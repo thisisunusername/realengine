@@ -1,6 +1,4 @@
 #tips LINUX
-// linux.reh —— 外部程序调用入口
-// 块内层字符串统一用单引号，避免与外层 do=" 的双引号撞车
 
 function_add "rel_echo"(type=normal) do="
   execve('/bin/echo', '$INPUT_OPT')

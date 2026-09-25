@@ -56,7 +56,7 @@ start_function "main"
 ```
 
 ```console
-$ ./out/interp examples/helloworld.re
+$ ./out/interp_linux_arm64 examples/helloworld.re
 === RealEngine 解释器 ===
 文件: examples/helloworld.re (77 字节)
 Token 数: 15
@@ -74,28 +74,57 @@ Hello world!
 需要 **C++17** 编译器（g++ / clang++ 均可）。
 
 ```sh
-make            # 编译到 out/interp
+make            # 编译，产物名自动带平台：out/interp_<系统>_<架构>
 make test       # 跑全部示例
 make clean
 ```
+
+产物名由 `uname` 自动决定，所以跨平台时不会互相覆盖：
+
+| 平台 | 产物名 |
+|---|---|
+| Linux / aarch64（本机） | `out/interp_linux_aarch64` |
+| Linux / x86_64 | `out/interp_linux_x86_64` |
+| macOS / arm64 | `out/interp_darwin_arm64` |
+
+> 注：Android 上的 proot Ubuntu 里 `uname -m` 返回 `aarch64`；
+> 发布用的 Release 附件统一命名为 `interp_linux_arm64`（见下）。
 
 或者手动：
 
 ```sh
 mkdir -p out
-g++ -std=c++17 -O0 -Wall -Isrc -o out/interp src/interp.cpp
+g++ -std=c++17 -O0 -Wall -Isrc -o out/interp_linux_arm64 src/interp.cpp
+```
+
+### 发布用二进制
+
+Release 附件是**优化 + strip 过**的版本，构建方式：
+
+```sh
+make release    # -O2 编译并 strip，产物可直接上传 Release
 ```
 
 > **关于 `-O0`**：单翻译单元（`interp.cpp` 包含全部头文件）在开了优化后
 > 编译期内存占用会涨到 1–2 GB，在手机上（尤其是同时跑着别的应用时）
-> 容易被系统杀掉。默认构建因此用 `-O0`。想要优化版：
->
-> ```sh
-> make CXXFLAGS="-std=c++17 -O2 -Wall -Wextra -Isrc"
-> ```
+> 容易被系统杀掉。日常构建因此默认用 `-O0`；只有发布时才用 `make release`。
 >
 > 内存实在紧张时，再加 `-fno-var-tracking -fno-var-tracking-assignments
 > -fno-inline --param ggc-min-expand=10 --param ggc-min-heapsize=8192`。
+
+### 预编译二进制
+
+懒得编译的话，去 [Releases](../../releases) 下载对应平台的附件：
+
+| 附件 | 平台 |
+|---|---|
+| `interp_linux_arm64` | Linux / Android(proot/Termux) aarch64 |
+| `interp_linux_x86_64` | Linux x86_64 |
+
+```sh
+chmod +x interp_linux_arm64
+./interp_linux_arm64 examples/helloworld.re
+```
 
 ---
 
