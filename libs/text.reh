@@ -1,0 +1,37 @@
+#tips TEXT —— 文本处理相关内建
+
+function_add "rel_seq"(type=normal) do="
+  execve('/usr/bin/seq', '$INPUT_OPT')
+"
+
+function_add "rel_sort"(type=normal) do="
+  execve('/usr/bin/sort', '$INPUT_OPT')
+"
+
+function_add "rel_uniq"(type=normal) do="
+  execve('/usr/bin/uniq', '-c', '$INPUT_OPT')
+"
+
+function_add "rel_tr"(type=normal) do="
+  execve('/usr/bin/tr', '$INPUT_OPT')
+"
+
+function_add "rel_cut"(type=normal) do="
+  execve('/usr/bin/cut', '$INPUT_OPT')
+"
+
+function_add "rel_sed"(type=normal) do="
+  execve('/bin/sed', '$INPUT_OPT')
+"
+
+function_add "rel_awk"(type=normal) do="
+  execve('/usr/bin/awk', '$INPUT_OPT')
+"
+
+function_add "rel_diff"(type=normal) do="
+  execve('/usr/bin/diff', '-u', '$INPUT_OPT')
+"
+
+function_add "rel_tee"(type=normal) do="
+  execve('/usr/bin/tee', '$INPUT_OPT')
+"

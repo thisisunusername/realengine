@@ -1,0 +1,33 @@
+#tips PROC —— 进程与系统信息
+
+function_add "rel_ps"(type=normal) do="
+  execve('/bin/ps', 'aux')
+"
+
+function_add "rel_kill"(type=normal) do="
+  execve('/bin/kill', '$INPUT_OPT')
+"
+
+function_add "rel_env"(type=normal) do="
+  execve('/usr/bin/env')
+"
+
+function_add "rel_date"(type=normal) do="
+  execve('/bin/date', '$INPUT_OPT')
+"
+
+function_add "rel_uptime"(type=normal) do="
+  execve('/usr/bin/uptime')
+"
+
+function_add "rel_df"(type=normal) do="
+  execve('/bin/df', '-h')
+"
+
+function_add "rel_free"(type=normal) do="
+  execve('/usr/bin/free', '-h')
+"
+
+function_add "rel_hostname"(type=normal) do="
+  execve('/bin/hostname')
+"

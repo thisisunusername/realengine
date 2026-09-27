@@ -1,0 +1,41 @@
+#tips FS —— 文件系统相关内建
+
+function_add "rel_mkdir"(type=normal) do="
+  execve('/bin/mkdir', '-p', '$INPUT_OPT')
+"
+
+function_add "rel_rm"(type=normal) do="
+  execve('/bin/rm', '-rf', '$INPUT_OPT')
+"
+
+function_add "rel_cp"(type=normal) do="
+  execve('/bin/cp', '-rv', '$INPUT_OPT')
+"
+
+function_add "rel_mv"(type=normal) do="
+  execve('/bin/mv', '-v', '$INPUT_OPT')
+"
+
+function_add "rel_touch"(type=normal) do="
+  execve('/usr/bin/touch', '$INPUT_OPT')
+"
+
+function_add "rel_head"(type=normal) do="
+  execve('/usr/bin/head', '-n', '20', '$INPUT_OPT')
+"
+
+function_add "rel_wc"(type=normal) do="
+  execve('/usr/bin/wc', '-l', '-w', '-c', '$INPUT_OPT')
+"
+
+function_add "rel_grep"(type=normal) do="
+  execve('/bin/grep', '--color=never', '$INPUT_OPT')
+"
+
+function_add "rel_stat"(type=normal) do="
+  execve('/usr/bin/stat', '$INPUT_OPT')
+"
+
+function_add "rel_du"(type=normal) do="
+  execve('/usr/bin/du', '-sh', '$INPUT_OPT')
+"

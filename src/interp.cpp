@@ -262,7 +262,10 @@ void Runtime::execOne(const StmtPtr& s) {
     case St::Exec: {
         std::string path = evalConcat("\"" + s->a + "\"");
         std::string cmd  = path;
-        for (auto& a : s->args) { cmd += ' '; cmd += a; }
+        for (auto& a : s->args) {
+            cmd += ' ';
+            cmd += expand(a);   // ← 参数也要展开 $VAR（否则 $INPUT_OPT 会原样传下去）
+        }
         std::printf("  -> 执行 %s\n", cmd.c_str());
         int rc = std::system(cmd.c_str());
         lastExit = (rc == -1) ? 127 : (WEXITSTATUS(rc));
@@ -280,12 +283,45 @@ void Runtime::execOne(const StmtPtr& s) {
         break;
     }
 
-    case St::WaitInput:
-        std::printf("[等待输入]\n");
+    case St::WaitInput: {
+        // 如果绑定了 form_function，先激活它（用于重置键盘字符集等）
+        auto ff = vars.find("form_function");
+        if (ff != vars.end() && !ff->second.empty()) callFunc(ff->second);
+
+        std::printf("[等待输入] ");
+        std::fflush(stdout);
+
+        std::string line;
+        if (!std::getline(std::cin, line)) {   // EOF（Ctrl-D / 管道结束）
+            shouldExit = true;
+            std::printf("\n[输入结束]\n");
+            break;
+        }
+        // 去掉残留的 \r（CRLF 输入）
+        while (!line.empty() && (line.back() == '\r' || line.back() == '\n')) line.pop_back();
+
+        vars["INPUT"] = line;
+
+        // INPUT 只取第一个单词（命令名），便于 `if $INPUT is "echo"` 这类整体比较判断；
+        // INPUT_OPT 取其余部分（参数）。
+        size_t sp = line.find(' ');
+        if (sp == std::string::npos) {
+            vars["INPUT"]     = line;
+            vars["INPUT_OPT"] = std::string();
+        } else {
+            vars["INPUT"]     = line.substr(0, sp);
+            vars["INPUT_OPT"] = line.substr(sp + 1);
+        }
+        vars["INPUT_LINE"] = line;   // 保留整行原文，供需要完整输入的场合使用
+
+        std::printf("[取得输入] INPUT=\"%s\" INPUT_OPT=\"%s\"\n",
+                    vars["INPUT"].c_str(), vars["INPUT_OPT"].c_str());
         break;
+    }
 
     case St::Kill:
         std::printf("[kill] %s\n", s->a.c_str());
+        shouldExit = true;
         break;
 
     case St::Print: {
@@ -356,7 +392,9 @@ void Runtime::callFunc(const std::string& name) {
         std::printf("  (函数 %s 不存在)\n", name.c_str());
         return;
     }
-    if (depth > 64) { std::printf("  (递归太深，停下)\n"); return; }
+    // 注意：shell 主循环靠 main 自递归实现，深度会持续增长，故放宽到 100000。
+    // 真正防爆栈靠 shouldExit（kill / EOF）及时退出。
+    if (depth > 100000) { std::printf("  (递归太深，停下)\n"); return; }
     ++depth;
     const FuncDef& f = it->second;
     if (!f.body.empty()) execStmts(f.body);

@@ -1,0 +1,17 @@
+#tips NET —— 网络相关内建
+
+function_add "rel_ping"(type=normal) do="
+  execve('/bin/ping', '-c', '4', '$INPUT_OPT')
+"
+
+function_add "rel_curl"(type=normal) do="
+  execve('/usr/bin/curl', '-sSL', '$INPUT_OPT')
+"
+
+function_add "rel_wget"(type=normal) do="
+  execve('/usr/bin/wget', '-qO-', '$INPUT_OPT')
+"
+
+function_add "rel_ip"(type=normal) do="
+  execve('/sbin/ip', 'addr')
+"
