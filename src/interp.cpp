@@ -429,8 +429,91 @@ int main(int argc, char** argv) {
             std::string dir = p.substr(0, slash);
             rt.importPaths.push_back(dir);
             rt.importPaths.push_back(dir + "/libs");
+            // 从子目录（如 out/）运行时也要能找到仓库根下的 libs
+            rt.importPaths.push_back(dir + "/../libs");
+            rt.importPaths.push_back(dir + "/../include");
+            rt.importPaths.push_back(dir + "/../examples/libs");
         }
     }
+    // 可执行文件所在目录的 libs（二进制被拷到别处也能用）
+    {
+        std::string exe = argv[0];
+        size_t slash = exe.find_last_of('/');
+        if (slash != std::string::npos) {
+            std::string dir = exe.substr(0, slash);
+            rt.importPaths.push_back(dir + "/libs");
+            rt.importPaths.push_back(dir + "/../libs");
+        }
+    }
+
+    // ===== 动态 PATH 探测 =====
+    // 把「命令去哪找」交给运行环境决定，而不是在 .reh 里硬编码 /usr/bin。
+    // 探测顺序：$RE_BIN_DIR > $PREFIX/bin(Termux) > 常见系统路径
+    {
+        auto dirExists = [](const std::string& d) {
+            FILE* f = std::fopen((d + "/.").c_str(), "rb");
+            if (f) { std::fclose(f); return true; }
+            return false;
+        };
+
+        std::string binDir;
+        const char* envPrefix = std::getenv("RE_BIN_DIR");
+        if (envPrefix && *envPrefix) {
+            binDir = envPrefix;
+        } else if (const char* pref = std::getenv("PREFIX")) {   // Termux
+            binDir = std::string(pref) + "/bin";
+        } else {
+            static const char* cands[] = { "/usr/bin", "/bin", "/usr/local/bin",
+                                           "/data/data/com.termux/files/usr/bin" };
+            for (const char* c : cands) {
+                if (dirExists(c)) { binDir = c; break; }
+            }
+        }
+        if (binDir.empty()) binDir = "/usr/bin";
+
+        rt.vars["BIN"]     = binDir;
+        rt.vars["BIN_DIR"] = binDir;
+
+        // 逐条命令解析真实路径；找不到就退回 binDir，交给系统报错
+        static const char* names[] = {
+            "sh", "whoami", "id", "uname", "ls", "cp", "mv", "rm", "mkdir",
+            "touch", "stat", "du", "cat", "head", "grep", "wc", "sort", "uniq",
+            "cut", "tr", "sed", "awk", "diff", "tee", "seq", "ps", "kill",
+            "env", "date", "uptime", "df", "free", "hostname", "ping", "curl",
+            "wget", "which", "sleep", "true", "false", "echo", "printf", "ip"
+        };
+        // 按 PATH 顺序搜索每个命令
+        std::vector<std::string> searchDirs;
+        if (const char* pe = std::getenv("PATH")) {
+            std::string s = pe;
+            size_t a = 0;
+            while (a <= s.size()) {
+                size_t b = s.find(':', a);
+                if (b == std::string::npos) b = s.size();
+                if (b > a) searchDirs.push_back(s.substr(a, b - a));
+                a = b + 1;
+            }
+        }
+        searchDirs.push_back(binDir);
+        searchDirs.push_back("/system/bin");        // Android
+        searchDirs.push_back("/usr/bin");
+        searchDirs.push_back("/bin");
+
+        for (const char* n : names) {
+            std::string found;
+            for (const auto& d : searchDirs) {
+                std::string cand = d + "/" + n;
+                if (Runtime::fileExists(cand)) { found = cand; break; }
+            }
+            std::string key = std::string("BIN_") + n;
+            std::for_each(key.begin(), key.end(), [](char& c) {
+                if (c == '-' || c == '.') c = '_';
+            });
+            rt.vars[key] = found.empty() ? (binDir + "/" + n) : found;
+        }
+        std::printf("PATH 探测: BIN=%s\n", binDir.c_str());
+    }
+
     rt.execStmts(prog);
 
     std::printf("\n=== 解释结束 ===\n");
