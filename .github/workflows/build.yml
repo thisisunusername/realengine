@@ -3,12 +3,13 @@ name: Build
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
   workflow_dispatch:
 
 jobs:
-  build-linux:
-    name: Linux (gcc)
+  build-linux-x86_64:
+    name: Linux x86_64
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -20,11 +21,82 @@ jobs:
         run: make test
       - uses: actions/upload-artifact@v4
         with:
-          name: interp-linux-x86_64
+          name: interp_linux_x86_64
           path: out/interp_linux_x86_64
 
+  build-linux-arm64:
+    name: Linux aarch64 (交叉编译)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装交叉编译器
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq g++-aarch64-linux-gnu
+
+      - name: Build
+        run: |
+          mkdir -p out
+          aarch64-linux-gnu-g++ -std=c++17 -O2 -Wall -Wextra -Isrc \
+            -o out/interp_linux_aarch64 src/interp.cpp
+          aarch64-linux-gnu-strip out/interp_linux_aarch64 2>/dev/null || true
+          ls -lh out/
+
+      - name: 验证架构
+        run: file out/interp_linux_aarch64
+
+      - name: 用 QEMU 跑测试
+        run: |
+          sudo apt-get install -y -qq qemu-user-static
+          for f in examples/*.re; do
+            printf '%-28s' "$f"
+            if qemu-aarch64-static -L /usr/aarch64-linux-gnu \
+                 out/interp_linux_aarch64 "$f" </dev/null >/dev/null 2>&1; then
+              echo "OK"
+            else
+              echo "FAIL"
+            fi
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: interp_linux_aarch64
+          path: out/interp_linux_aarch64
+
+  build-android-arm64:
+    name: Android arm64 (NDK)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build with NDK
+        run: |
+          # GitHub runner 自带 Android NDK，路径在 $ANDROID_NDK_LATEST_HOME
+          NDK="${ANDROID_NDK_LATEST_HOME:-$ANDROID_NDK_ROOT}"
+          echo "NDK = $NDK"
+          ls "$NDK/toolchains/llvm/prebuilt/" || true
+
+          TC="$NDK/toolchains/llvm/prebuilt/linux-x86_64"
+          CLANGXX="$TC/bin/aarch64-linux-android24-clang++"
+          echo "clang++ = $CLANGXX"
+
+          mkdir -p out
+          "$CLANGXX" -std=c++17 -O2 -Wall -Isrc \
+            -o out/interp_android_arm64 src/interp.cpp
+          ls -lh out/
+
+      - name: Show info
+        run: |
+          file out/interp_android_arm64 || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: interp_android_arm64
+          path: out/interp_android_arm64
+
   build-windows:
-    name: Windows (MSYS2 / MinGW-w64)
+    name: Windows x86_64 (MSYS2 / MinGW-w64)
     runs-on: windows-latest
     defaults:
       run:
@@ -46,7 +118,7 @@ jobs:
           uname -m
           g++ --version | head -1
 
-      - name: Build via Makefile (验证 Windows 探测逻辑)
+      - name: Build via Makefile
         run: |
           make release
           ls -lh out/
@@ -57,5 +129,58 @@ jobs:
       - name: Upload
         uses: actions/upload-artifact@v4
         with:
-          name: interp-windows-x86_64
+          name: interp_windows_x86_64
           path: out/interp_windows_x86_64.exe
+
+  release:
+    name: 发布 Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - build-linux-x86_64
+      - build-linux-arm64
+      - build-android-arm64
+      - build-windows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 下载所有构建产物
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: 整理文件
+        run: |
+          echo "=== 下载到的内容 ==="
+          find dist -type f -exec ls -lh {} \;
+          echo
+          mkdir -p release
+          for d in dist/*/; do
+            name="$(basename "$d")"
+            if [ -f "$d/$name" ]; then
+              cp "$d/$name" "release/$name"
+            else
+              # 兜底：目录里第一个文件
+              f=$(find "$d" -maxdepth 1 -type f | head -1)
+              [ -n "$f" ] && cp "$f" "release/$name"
+            fi
+          done
+          echo "=== release/ 目录 ==="
+          ls -lh release/
+
+      - name: 计算校验和
+        run: |
+          cd release
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*
+          generate_release_notes: true
+          draft: false
+          prerelease: false
