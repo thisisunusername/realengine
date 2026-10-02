@@ -9,7 +9,23 @@
 #include <map>
 #include <sstream>
 #include <string>
-#include <unistd.h>
+#if defined(_WIN32)
+  #ifndef WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
+  #endif
+  #include <windows.h>    // Sleep() / DWORD
+  #include <io.h>         // _popen / _pclose
+  #define RE_POPEN  _popen
+  #define RE_PCLOSE _pclose
+  #ifndef WEXITSTATUS
+    #define WEXITSTATUS(x) (x)   // Windows 的 system() 直接返回退出码
+  #endif
+#else
+  #include <unistd.h>
+  #include <sys/wait.h>
+  #define RE_POPEN  popen
+  #define RE_PCLOSE pclose
+#endif
 #include <vector>
 
 using namespace re;
@@ -34,12 +50,17 @@ struct Runtime {
 
     std::string runCommand(const std::string& cmd) {
         std::string out;
-        FILE* f = popen((cmd + " 2>/dev/null").c_str(), "r");
+#if defined(_WIN32)
+        // Windows: cmd.exe 不认 2>/dev/null，用 2>NUL
+        FILE* f = RE_POPEN((cmd + " 2>NUL").c_str(), "r");
+#else
+        FILE* f = RE_POPEN((cmd + " 2>/dev/null").c_str(), "r");
+#endif
         if (!f) return "";
         char buf[4096];
         size_t n;
         while ((n = fread(buf, 1, sizeof buf, f)) > 0) out.append(buf, n);
-        pclose(f);
+        RE_PCLOSE(f);
         while (!out.empty() && (out.back() == '\n' || out.back() == '\r')) out.pop_back();
         return out;
     }
@@ -268,7 +289,12 @@ void Runtime::execOne(const StmtPtr& s) {
         }
         std::printf("  -> 执行 %s\n", cmd.c_str());
         int rc = std::system(cmd.c_str());
+#if defined(_WIN32)
+        // Windows: system() 直接返回退出码，没有 wait 状态可拆
+        lastExit = (rc == -1) ? 127 : rc;
+#else
         lastExit = (rc == -1) ? 127 : (WEXITSTATUS(rc));
+#endif
         vars["up_cmd_exitcode"] = std::to_string(lastExit);
         break;
     }
@@ -279,7 +305,13 @@ void Runtime::execOne(const StmtPtr& s) {
         int ms = 1000;
         if (unit == "ms") ms = 1;
         std::printf("[等待] %d %s\n", n, unit.empty() ? "second" : unit.c_str());
-        if (n > 0) ::usleep((useconds_t)n * ms * 1000);
+        if (n > 0) {
+#if defined(_WIN32)
+            Sleep((DWORD)(n * ms));                    // Windows: 毫秒直接传
+#else
+            ::usleep((useconds_t)n * ms * 1000);       // POSIX: 微秒
+#endif
+        }
         break;
     }
 
@@ -424,7 +456,7 @@ int main(int argc, char** argv) {
     rt.importPaths.push_back("examples/libs");
     {
         std::string p = argv[1];
-        size_t slash = p.find_last_of('/');
+        size_t slash = p.find_last_of("/\\");   // Windows 反斜杠也要认
         if (slash != std::string::npos) {
             std::string dir = p.substr(0, slash);
             rt.importPaths.push_back(dir);
@@ -438,7 +470,7 @@ int main(int argc, char** argv) {
     // 可执行文件所在目录的 libs（二进制被拷到别处也能用）
     {
         std::string exe = argv[0];
-        size_t slash = exe.find_last_of('/');
+        size_t slash = exe.find_last_of("/\\");   // 同上
         if (slash != std::string::npos) {
             std::string dir = exe.substr(0, slash);
             rt.importPaths.push_back(dir + "/libs");
@@ -463,13 +495,25 @@ int main(int argc, char** argv) {
         } else if (const char* pref = std::getenv("PREFIX")) {   // Termux
             binDir = std::string(pref) + "/bin";
         } else {
+#if defined(_WIN32)
+            // Windows: System32 里有一堆内建命令（whoami/where/...）
+            static const char* cands[] = {
+                "C:/Windows/System32", "C:/Windows", "C:/msys64/usr/bin",
+                "C:/msys64/mingw64/bin", "C:/Program Files/Git/usr/bin"
+            };
+#else
             static const char* cands[] = { "/usr/bin", "/bin", "/usr/local/bin",
                                            "/data/data/com.termux/files/usr/bin" };
+#endif
             for (const char* c : cands) {
                 if (dirExists(c)) { binDir = c; break; }
             }
         }
+#if defined(_WIN32)
+        if (binDir.empty()) binDir = "C:/Windows/System32";
+#else
         if (binDir.empty()) binDir = "/usr/bin";
+#endif
 
         rt.vars["BIN"]     = binDir;
         rt.vars["BIN_DIR"] = binDir;
@@ -486,9 +530,14 @@ int main(int argc, char** argv) {
         std::vector<std::string> searchDirs;
         if (const char* pe = std::getenv("PATH")) {
             std::string s = pe;
+#if defined(_WIN32)
+            const char sep = ';';   // Windows 用分号分隔
+#else
+            const char sep = ':';
+#endif
             size_t a = 0;
             while (a <= s.size()) {
-                size_t b = s.find(':', a);
+                size_t b = s.find(sep, a);
                 if (b == std::string::npos) b = s.size();
                 if (b > a) searchDirs.push_back(s.substr(a, b - a));
                 a = b + 1;
@@ -504,6 +553,10 @@ int main(int argc, char** argv) {
             for (const auto& d : searchDirs) {
                 std::string cand = d + "/" + n;
                 if (Runtime::fileExists(cand)) { found = cand; break; }
+#if defined(_WIN32)
+                cand = d + "\\" + n + ".exe";   // Windows: 反斜杠 + .exe
+                if (Runtime::fileExists(cand)) { found = cand; break; }
+#endif
             }
             std::string key = std::string("BIN_") + n;
             std::for_each(key.begin(), key.end(), [](char& c) {

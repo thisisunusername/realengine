@@ -4,6 +4,9 @@ out/
 *.obj
 *.a
 *.so
+*.exe
+*.pdb
+*.ilk
 
 # ---- 转译器生成的中间 C++ ----
 *.re.cpp

@@ -1,0 +1,61 @@
+name: Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+    name: Linux (gcc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          make release
+          ls -lh out/
+      - name: Test
+        run: make test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: interp-linux-x86_64
+          path: out/interp_linux_x86_64
+
+  build-windows:
+    name: Windows (MSYS2 / MinGW-w64)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          update: true
+          install: >-
+            mingw-w64-x86_64-gcc
+            make
+
+      - name: Show platform
+        run: |
+          uname -s
+          uname -m
+          g++ --version | head -1
+
+      - name: Build via Makefile (验证 Windows 探测逻辑)
+        run: |
+          make release
+          ls -lh out/
+
+      - name: Test
+        run: make test
+
+      - name: Upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: interp-windows-x86_64
+          path: out/interp_windows_x86_64.exe

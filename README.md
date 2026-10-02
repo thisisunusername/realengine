@@ -79,6 +79,29 @@ make test       # 跑全部示例
 make clean
 ```
 
+### Windows
+
+提供了 `build_windows.bat`，会自动挑编译器（优先级：**LLVM-MinGW 的 clang++** → MinGW 的 g++ → MSVC 的 cl）：
+
+```bat
+build_windows.bat             :: 编译
+build_windows.bat test        :: 编译 + 跑示例
+build_windows.bat clean       :: 清理
+build_windows.bat CXX=g++     :: 手动指定编译器
+```
+
+产物为 `out\interp_windows_x86_64.exe`。
+
+装了 MSYS2 / Git-Bash 的话，**Makefile 也能直接用**（会自动识别 MinGW/MSYS/Cygwin 并给产物加 `.exe` 后缀）：
+
+```sh
+make release
+```
+
+> **跨平台实现说明**：Windows 与 POSIX 的差异由 `#if defined(_WIN32)` 隔离，
+> 涉及 `popen`/`_popen`、`WEXITSTATUS`、`usleep`/`Sleep`、PATH 分隔符（`:` vs `;`）
+> 以及命令查找时的 `.exe` 后缀。改动都集中在一处，方便对照。
+
 产物名由 `uname` 自动决定：
 
 | 平台 | 产物名 |
