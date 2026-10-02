@@ -56,7 +56,7 @@ start_function "main"
 ```
 
 ```console
-$ ./out/interp_linux_arm64 examples/helloworld.re
+$ ./out/interp_linux_aarch64 examples/helloworld.re
 === RealEngine 解释器 ===
 文件: examples/helloworld.re (77 字节)
 Token 数: 15
@@ -126,19 +126,28 @@ make release    # -O2 编译并 strip，产物可直接上传 Release
 
 ### 预编译二进制
 
-懒得编译的话，去 [Releases](../../releases) 下载附件：
+懒得编译的话，去 **[Releases](../../releases/latest)** 下载 —— **最新版 [`v0.2.2`](../../releases/tag/v0.2.2)** 提供四个平台的二进制：
 
-| 附件 | 平台 | 说明 |
-|---|---|---|
-| `interp_linux_arm64` | Linux aarch64 | glibc，跑在普通 Linux / proot 里 |
-| `interp_android_arm64` | Android arm64 | 链接 `/system/bin/linker64`，跑在 Termux 等 Android 原生环境 |
+| 附件 | 平台 | 链接方式 | 说明 |
+|---|---|---|---|
+| `interp_linux_x86_64` | Linux x86_64 | glibc | 普通 PC 上的 Linux |
+| `interp_linux_aarch64` | Linux aarch64 | glibc | 跑在 ARM Linux / proot 里 |
+| `interp_android_arm64` | Android arm64 | `/system/bin/linker64` | 跑在 Termux 等 Android 原生环境 |
+| `interp_windows_x86_64` | Windows x86_64 | MSVCRT | MSYS2 MinGW 编译，重命名为 `.exe` 即可双击运行 |
+| `SHA256SUMS.txt` | — | — | 全部附件的校验和 |
+
+下载后校验完整性（推荐）：
 
 ```sh
-chmod +x interp_linux_arm64
-./interp_linux_arm64 examples/helloworld.re
+sha256sum -c SHA256SUMS.txt
 ```
 
-**注意两个二进制不能混用** —— Linux 版依赖 glibc，Android 版依赖 bionic。在 Android 上跑 Linux 版会报 `required file not found`（找不到 `ld-linux-aarch64.so.1`），反过来同理。
+Linux 上的用法：
+
+```sh
+chmod +x interp_linux_aarch64
+./interp_linux_aarch64 examples/helloworld.re
+```
 
 Android 上的用法：
 
@@ -146,6 +155,31 @@ Android 上的用法：
 chmod +x interp_android_arm64
 ./interp_android_arm64 examples/helloworld.re
 ```
+
+> **注意平台不能混用** —— Linux 版依赖 glibc，Android 版依赖 bionic。
+> 在 Android 上跑 Linux 版会报 `required file not found`（找不到 `ld-linux-aarch64.so.1`），反过来同理。
+> 在 x86_64 Linux 上跑 aarch64 版也需要 `qemu-user` 之类的模拟。
+
+### 各版本发布内容
+
+| 版本 | 平台数 | 说明 |
+|---|---|---|
+| `v0.2.2` | **4** | 当前最新。新增 Windows / Linux arm64 / Android arm64，由 GitHub Actions 自动构建并发 Release |
+| `v0.2.1` | 2 | 只有 Linux aarch64 与 Android arm64 |
+| `v0.2.0` | 2 | 同上，早期版本 |
+| `v0.1.0` | — | 首个版本 |
+
+### 自动构建（CI）
+
+推 `main` 分支会自动构建四个平台并跑测试；**推 `v*` 标签**则额外自动创建 Release 并上传全部附件。
+
+```sh
+git tag -a v0.2.3 -m "v0.2.3"
+git push origin v0.2.3     # 触发 CI → 自动发 Release
+```
+
+CI 配置见 [`.github/workflows/build.yml`](.github/workflows/build.yml)：
+每个平台都经过**真实编译 + 运行测试**（Linux arm64 用 QEMU user-mode 验证，Android 版做过真机实测）。
 
 ---
 
