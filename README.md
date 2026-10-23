@@ -1,6 +1,13 @@
-# RealEngine
+<p align="center">
+  <img src="https://raw.githubusercontent.com/thisisunusername/realengine/main/assets/logo.svg"
+       width="128" height="128" alt="RealEngine logo">
+</p>
 
-**一门小巧的元编程 DSL —— 用 C++17 写的树遍历解释器**
+<h1 align="center">RealEngine</h1>
+
+<p align="center">
+  <b>一门小巧的元编程 DSL —— 用 C++17 写的树遍历解释器</b>
+</p>
 
 > 代码由 **DeepSeek** 编写，语言设计来自一份手写的语法草稿。
 
