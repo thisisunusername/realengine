@@ -350,4 +350,8 @@ exit
 
 ## 许可
 
-MIT
+**GPL-2.0-or-later** —— 完整条款见 [LICENSE](LICENSE)。
+
+在本协议第 9 条的框架下发布，即可以选择 GPL 第 2 版或更新的版本；SPDX 标识为
+`GPL-2.0-or-later`。之前版本以 MIT 发布，已经按 MIT 拿到的副本仍可继续按 MIT 使用，
+但从本次提交起，新收到的副本适用 GPL。
